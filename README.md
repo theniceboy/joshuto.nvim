@@ -14,3 +14,8 @@ or
 lua require'joshuto'.joshuto()
 ```
 
+or to open files in tabs
+```
+lua require'joshuto'.joshuto({ edit_in_tab = true })
+```
+
