@@ -15,37 +15,36 @@ local buffer = -1
 
 local output_path = "/tmp/joshuto_filechosen"
 
-local function on_exit(job_id, code, event)
-	if code ~= 0 and code ~= 102 then
-		return
-	end
-
-	JOSHUTO_BUFFER = nil
-	JOSHUTO_LOADED = false
-	vim.g.joshuto_opened = 0
-	vim.cmd("silent! :checktime")
-
-	if vim.api.nvim_win_is_valid(prev_win) then
-		vim.api.nvim_win_close(win, true)
-		vim.api.nvim_set_current_win(prev_win)
-		if code == 102 then
-			local chosen_file = vim.fn.readfile(output_path)[1]
-			if chosen_file then
-				vim.cmd(string.format('edit %s', chosen_file))
-			end
-		end
-		prev_win = -1
-		if vim.api.nvim_buf_is_valid(buffer) and vim.api.nvim_buf_is_loaded(buffer) then
-			vim.api.nvim_buf_delete(buffer, { force = true })
-		end
-		buffer = -1
-		win = -1
-	end
-end
-
 --- Call joshuto
-local function exec_joshuto_command(cmd)
-	-- print(cmd)
+local function exec_joshuto_command(cmd, edit_cmd)
+	local function on_exit(job_id, code, event)
+		if code ~= 0 and code ~= 102 then
+			return
+		end
+
+		JOSHUTO_BUFFER = nil
+		JOSHUTO_LOADED = false
+		vim.g.joshuto_opened = 0
+		vim.cmd("silent! :checktime")
+
+		if vim.api.nvim_win_is_valid(prev_win) then
+			vim.api.nvim_win_close(win, true)
+			vim.api.nvim_set_current_win(prev_win)
+			if code == 102 then
+				local chosen_file = vim.fn.readfile(output_path)[1]
+				if chosen_file then
+					vim.cmd(string.format("%s %s", edit_cmd, chosen_file))
+				end
+			end
+			prev_win = -1
+			if vim.api.nvim_buf_is_valid(buffer) and vim.api.nvim_buf_is_loaded(buffer) then
+				vim.api.nvim_buf_delete(buffer, { force = true })
+			end
+			buffer = -1
+			win = -1
+		end
+	end
+
 	if JOSHUTO_LOADED == false then
 		-- ensure that the buffer is closed on exit
 		vim.g.joshuto_opened = 1
@@ -55,14 +54,22 @@ local function exec_joshuto_command(cmd)
 end
 
 --- :Joshuto entry point
-local function joshuto(path)
+local function joshuto(opts)
+	opts = opts or {}
+	local edit_cmd
+	if opts.edit_in_tab then
+		edit_cmd = "tabedit"
+	else
+		edit_cmd = "edit"
+	end
+
 	if is_joshuto_available() ~= true then
 		print("Please install joshuto. Check documentation for more information")
 		return
 	end
 
 	prev_win = vim.api.nvim_get_current_win()
-	path = vim.fn.expand('%:p:h')
+	local path = vim.fn.expand("%:p:h")
 
 	win, buffer = open_floating_window()
 
@@ -78,7 +85,7 @@ local function joshuto(path)
 	os.remove(output_path)
 	local cmd = string.format('joshuto --file-chooser --output-file "%s" "%s"', output_path, path)
 
-	exec_joshuto_command(cmd)
+	exec_joshuto_command(cmd, edit_cmd)
 end
 
 return {
